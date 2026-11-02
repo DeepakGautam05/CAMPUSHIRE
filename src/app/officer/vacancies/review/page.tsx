@@ -1,17 +1,27 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useLayoutEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, ArrowLeft, CheckCircle2, CircleHelp, Send } from "lucide-react";
+import { AlertTriangle, ArrowLeft, CheckCircle2, CircleHelp, Save, Send } from "lucide-react";
 import { PageHeader } from "@/components/layout/app-shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input, Label, Textarea } from "@/components/ui/input";
 import { extractedVacancy } from "@/data/mock";
+import { addVacancy, type NewVacancyInput } from "@/lib/vacancy-store";
 import { cn } from "@/lib/utils";
 import type { Confidence } from "@/types";
+import type { VacancyStatus } from "@/types/vacancy";
+
+// "CSE, IT, ECE" -> ["CSE", "IT", "ECE"]
+function splitList(text: string) {
+  return text
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
 
 const meta: Record<
   Confidence,
@@ -22,14 +32,26 @@ const meta: Record<
   missing: { label: "Missing", variant: "danger", icon: CircleHelp, ring: "border-red-300" },
 };
 
+const initialValues = () =>
+  Object.fromEntries(extractedVacancy.map((f) => [f.key, f.value]));
+
 export default function ReviewVacancyPage() {
   const router = useRouter();
-  const [values, setValues] = useState(() =>
-    Object.fromEntries(extractedVacancy.map((f) => [f.key, f.value]))
-  );
+  const [values, setValues] = useState(initialValues);
   // Fields the officer has explicitly confirmed or marked not applicable.
   const [resolved, setResolved] = useState<Set<string>>(new Set());
   const [approved, setApproved] = useState(false);
+
+  // Next.js keeps hidden pages alive (Activity) and remembers their state.
+  // Reset the review when this page is hidden, so the next vacancy always
+  // starts unchecked. The officer must review and approve every time.
+  useLayoutEffect(() => {
+    return () => {
+      setValues(initialValues());
+      setResolved(new Set());
+      setApproved(false);
+    };
+  }, []);
 
   const flagged = extractedVacancy.filter((f) => f.confidence !== "high");
   const isResolved = (key: string, conf: Confidence) =>
@@ -37,7 +59,33 @@ export default function ReviewVacancyPage() {
     resolved.has(key) ||
     (conf === "missing" && values[key].trim() !== "");
   const pending = flagged.filter((f) => !isResolved(f.key, f.confidence));
-  const canPublish = pending.length === 0 && approved;
+  // A vacancy without a company or a role title would look broken in the list
+  const hasBasics = values.company.trim() !== "" && values.title.trim() !== "";
+  const canPublish = pending.length === 0 && approved && hasBasics;
+
+  // Turn the review form values into a real vacancy and save it in the store
+  function save(status: VacancyStatus) {
+    const location = values.location.trim();
+    const workMode = values.workMode.trim();
+    const input: NewVacancyInput = {
+      companyName: values.company.trim(),
+      roleTitle: values.title.trim(),
+      employmentType: values.jobType.trim().toLowerCase().startsWith("intern")
+        ? "Internship"
+        : "Full-time",
+      location: workMode ? `${location} (${workMode})` : location,
+      packageLpa: values.ctc.trim(),
+      minCgpa: values.minCgpa.trim(),
+      eligibleBranches: splitList(values.branches),
+      requiredSkills: splitList(values.skills),
+      batch: "2027", // the review form has no batch field yet
+      applicationDeadline: values.deadline.trim(),
+      description: values.description.trim(),
+      status,
+    };
+    const vacancy = addVacancy(input);
+    router.push(`/officer/vacancies/${vacancy.id}`);
+  }
 
   const counts = useMemo(
     () => ({
@@ -97,6 +145,7 @@ export default function ReviewVacancyPage() {
                   ) : (
                     <Input
                       id={f.key}
+                      type={f.key === "deadline" ? "date" : "text"}
                       value={values[f.key]}
                       placeholder={f.confidence === "missing" ? "Not found. Enter manually" : ""}
                       onChange={(e) => setValues({ ...values, [f.key]: e.target.value })}
@@ -161,13 +210,28 @@ export default function ReviewVacancyPage() {
                 I have reviewed every field and approve this vacancy for publishing.
               </label>
 
+              {!hasBasics && (
+                <p className="text-xs text-danger">
+                  Company and job title are required before you can save this vacancy.
+                </p>
+              )}
+
               <Button
                 className="w-full"
                 disabled={!canPublish}
-                onClick={() => router.push("/officer/vacancies")}
+                onClick={() => save("published")}
               >
                 <Send className="h-4 w-4" />
                 Publish vacancy
+              </Button>
+              <Button
+                className="w-full"
+                variant="outline"
+                disabled={!hasBasics}
+                onClick={() => save("draft")}
+              >
+                <Save className="h-4 w-4" />
+                Save as draft
               </Button>
             </CardContent>
           </Card>
