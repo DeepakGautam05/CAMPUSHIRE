@@ -19,11 +19,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { mockVacancies } from "@/lib/mock-vacancies";
+import { useVacancies } from "@/lib/vacancy-store";
 import { STATUS_LABEL, type VacancyStatus } from "@/types/vacancy";
 
-const CREATE_ROUTE = "/officer/vacancies/create";
-const DETAILS_ROUTE = (id: string) => `/officer/vacancies/${id}`; // built in the next step
+const CREATE_ROUTE = "/officer/vacancies/new"; // input page of the AI flow (same link as the sidebar)
+const DETAILS_ROUTE = (id: string) => `/officer/vacancies/${id}`;
 
 type Filter = "all" | VacancyStatus;
 
@@ -35,6 +35,7 @@ const STATUS_STYLE: Record<VacancyStatus, string> = {
 
 // timeZone is fixed so the server and browser always show the same date
 function formatDate(iso: string) {
+  if (!iso || Number.isNaN(new Date(iso).getTime())) return "Not set";
   return new Date(iso).toLocaleDateString("en-IN", {
     day: "numeric",
     month: "short",
@@ -46,16 +47,17 @@ function formatDate(iso: string) {
 export default function OfficerVacanciesPage() {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
+  const vacancies = useVacancies();
 
   const counts = useMemo(() => {
-    const c: Record<Filter, number> = { all: mockVacancies.length, draft: 0, published: 0, closed: 0 };
-    for (const v of mockVacancies) c[v.status]++;
+    const c: Record<Filter, number> = { all: vacancies.length, draft: 0, published: 0, closed: 0 };
+    for (const v of vacancies) c[v.status]++;
     return c;
-  }, []);
+  }, [vacancies]);
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return mockVacancies.filter((v) => {
+    return vacancies.filter((v) => {
       if (filter !== "all" && v.status !== filter) return false;
       if (!q) return true;
       return (
@@ -64,7 +66,7 @@ export default function OfficerVacanciesPage() {
         v.location.toLowerCase().includes(q)
       );
     });
-  }, [query, filter]);
+  }, [vacancies, query, filter]);
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 p-6">

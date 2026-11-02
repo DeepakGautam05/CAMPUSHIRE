@@ -1,10 +1,9 @@
 "use client";
 
 // Phase 3 - Step 3: Officer Vacancy Details
-// Reads the id from the URL, finds the vacancy in mock data, and shows everything.
-// Status buttons (publish / close / reopen) only change local state. No backend yet.
+// Reads the id from the URL, finds the vacancy in the shared store, and shows everything.
+// Status buttons (publish / close / reopen) are saved in the store (localStorage). No backend yet.
 
-import { useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
@@ -19,7 +18,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { getVacancyById } from "@/lib/mock-vacancies";
+import { setVacancyStatus, useStoreReady, useVacancy } from "@/lib/vacancy-store";
 import { STATUS_LABEL, type VacancyStatus } from "@/types/vacancy";
 
 const LIST_ROUTE = "/officer/vacancies";
@@ -31,6 +30,7 @@ const STATUS_STYLE: Record<VacancyStatus, string> = {
 };
 
 function formatDate(iso: string) {
+  if (!iso || Number.isNaN(new Date(iso).getTime())) return "Not set";
   return new Date(iso).toLocaleDateString("en-IN", {
     day: "numeric",
     month: "short",
@@ -42,10 +42,11 @@ function formatDate(iso: string) {
 export default function VacancyDetailsPage() {
   const params = useParams<{ id: string }>();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
-  const vacancy = getVacancyById(id);
+  const vacancy = useVacancy(id);
+  const ready = useStoreReady();
 
-  // Local copy of the status so the buttons can change it on screen
-  const [status, setStatus] = useState<VacancyStatus | null>(null);
+  // Wait until the browser data is read, so a new vacancy never flashes "not found"
+  if (!vacancy && !ready) return null;
 
   if (!vacancy) {
     return (
@@ -65,7 +66,7 @@ export default function VacancyDetailsPage() {
     );
   }
 
-  const currentStatus = status ?? vacancy.status;
+  const currentStatus = vacancy.status;
 
   // Mock applicant breakdown, calculated from the total
   const total = vacancy.applicantsCount;
@@ -109,15 +110,15 @@ export default function VacancyDetailsPage() {
             Edit
           </Button>
           {currentStatus === "draft" && (
-            <Button onClick={() => setStatus("published")}>Publish</Button>
+            <Button onClick={() => setVacancyStatus(vacancy.id, "published")}>Publish</Button>
           )}
           {currentStatus === "published" && (
-            <Button variant="destructive" onClick={() => setStatus("closed")}>
+            <Button variant="destructive" onClick={() => setVacancyStatus(vacancy.id, "closed")}>
               Close vacancy
             </Button>
           )}
           {currentStatus === "closed" && (
-            <Button onClick={() => setStatus("published")}>Reopen</Button>
+            <Button onClick={() => setVacancyStatus(vacancy.id, "published")}>Reopen</Button>
           )}
         </div>
       </div>

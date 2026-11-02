@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   FileText,
@@ -37,6 +37,18 @@ export default function NewVacancyPage() {
 
   const ready = mode === "text" ? text.trim().length > 20 : file !== null;
   const processing = step !== null;
+
+  // Next.js keeps hidden pages alive (Activity) and remembers their state.
+  // Reset the form when this page is hidden, so every visit starts fresh
+  // and never shows a stuck "processing" screen.
+  useLayoutEffect(() => {
+    return () => {
+      setMode("pdf");
+      setFile(null);
+      setText("");
+      setStep(null);
+    };
+  }, []);
 
   function switchMode(m: Mode) {
     setMode(m);
