@@ -196,8 +196,8 @@ export default function VacancyDetailsPage() {
                 <li className="flex justify-between"><span className="text-muted-foreground">Rejected</span><span className="font-medium">{rejected}</span></li>
               </ul>
             )}
-            <Button variant="outline" className="w-full" disabled title="Applications page comes later">
-              View applications
+            <Button asChild variant="outline" className="w-full">
+              <Link href={`/officer/applications?vacancy=${vacancy.id}`}>View applications</Link>
             </Button>
           </CardContent>
         </Card>
