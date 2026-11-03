@@ -18,6 +18,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { slugify } from "@/lib/mock-companies";
 import { setVacancyStatus, useStoreReady, useVacancy } from "@/lib/vacancy-store";
 import { STATUS_LABEL, type VacancyStatus } from "@/types/vacancy";
 
@@ -101,7 +102,13 @@ export default function VacancyDetailsPage() {
             </Badge>
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
-            {vacancy.companyName} &middot; Created {formatDate(vacancy.createdAt)}
+            <Link
+              href={`/officer/companies/${slugify(vacancy.companyName)}`}
+              className="font-medium text-foreground hover:text-primary hover:underline"
+            >
+              {vacancy.companyName}
+            </Link>{" "}
+            &middot; Created {formatDate(vacancy.createdAt)}
           </p>
         </div>
 
