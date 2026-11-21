@@ -1,9 +1,10 @@
-// Phase 3 - Step 1: realistic mock vacancies (no backend yet)
+// Phase 3: Realistic mock vacancies for Placement Officer views (no backend yet)
 import type { Vacancy } from "@/types/vacancy";
 
 export const mockVacancies: Vacancy[] = [
   {
     id: "v-101",
+    companyId: "co-1",
     companyName: "TechNova Solutions",
     roleTitle: "Frontend Developer",
     employmentType: "Full-time",
@@ -15,17 +16,19 @@ export const mockVacancies: Vacancy[] = [
     batch: "2027",
     applicationDeadline: "2026-11-05",
     description:
-      "Build and maintain responsive user interfaces for our SaaS products, working closely with designers and backend engineers.",
+      "Build and maintain responsive user interfaces for our enterprise SaaS products. You will collaborate closely with UI/UX designers, backend engineers, and product managers to ship accessible, high-performance web components.",
     status: "published",
     applicantsCount: 48,
     createdAt: "2026-10-10",
+    backlogsAllowed: 0,
   },
   {
     id: "v-102",
+    companyId: "co-2",
     companyName: "CloudKart",
     roleTitle: "Backend Engineer",
     employmentType: "Full-time",
-    location: "Gurugram",
+    location: "Gurugram (On-site)",
     packageLpa: "9 - 12 LPA",
     minCgpa: "7.5",
     eligibleBranches: ["CSE", "IT"],
@@ -33,17 +36,19 @@ export const mockVacancies: Vacancy[] = [
     batch: "2027",
     applicationDeadline: "2026-11-12",
     description:
-      "Design and ship scalable APIs for our e-commerce platform and improve the performance of core services.",
+      "Design and scale high-concurrency microservices powering order management, payments, and warehouse logistics. Ideal for students with strong data structures and database fundamentals.",
     status: "published",
     applicantsCount: 31,
     createdAt: "2026-10-08",
+    backlogsAllowed: 0,
   },
   {
     id: "v-103",
+    companyId: "co-3",
     companyName: "DataBridge Analytics",
     roleTitle: "Data Analyst Intern",
     employmentType: "Internship",
-    location: "Remote",
+    location: "Bengaluru (Remote)",
     packageLpa: "25,000 / month",
     minCgpa: "6.5",
     eligibleBranches: ["CSE", "IT", "ECE", "EE"],
@@ -51,17 +56,19 @@ export const mockVacancies: Vacancy[] = [
     batch: "2027",
     applicationDeadline: "2026-10-30",
     description:
-      "Work with the analytics team to clean data, build dashboards and share insights with business teams.",
+      "Work alongside business intelligence teams to extract, transform, and model data from production databases. Build executive dashboards and analyze cohort metrics for financial clients.",
     status: "published",
     applicantsCount: 76,
     createdAt: "2026-10-05",
+    backlogsAllowed: 1,
   },
   {
     id: "v-104",
+    companyId: "co-4",
     companyName: "Pixelwave Studio",
     roleTitle: "UI/UX Engineer",
     employmentType: "Full-time",
-    location: "Delhi (On-site)",
+    location: "Delhi NCR (On-site)",
     packageLpa: "5 - 7 LPA",
     minCgpa: "6.5",
     eligibleBranches: ["CSE", "IT"],
@@ -69,31 +76,35 @@ export const mockVacancies: Vacancy[] = [
     batch: "2027",
     applicationDeadline: "2026-11-20",
     description:
-      "Turn design mockups into polished, accessible interfaces and help maintain our component library.",
+      "Turn Figma design systems into pixel-perfect web experiences. Maintain component libraries, test for cross-browser accessibility, and build creative landing pages.",
     status: "draft",
     applicantsCount: 0,
     createdAt: "2026-10-14",
+    backlogsAllowed: 0,
   },
   {
     id: "v-105",
+    companyId: "co-5",
     companyName: "SecureNet Systems",
     roleTitle: "Security Analyst",
     employmentType: "Full-time",
-    location: "Pune",
+    location: "Pune (On-site)",
     packageLpa: "8 - 10 LPA",
     minCgpa: "7.0",
     eligibleBranches: ["CSE", "IT", "ECE"],
-    requiredSkills: ["Networking", "Linux", "Python", "OWASP"],
+    requiredSkills: ["Networking", "Linux", "Python", "OWASP", "SIEM"],
     batch: "2027",
     applicationDeadline: "2026-09-25",
     description:
-      "Monitor systems for threats, run vulnerability assessments and help the team respond to incidents.",
+      "Monitor enterprise endpoints and network perimeters for anomalous activity. Conduct routine vulnerability scanning, configure firewall policies, and assist in cyber incident drills.",
     status: "closed",
     applicantsCount: 54,
     createdAt: "2026-09-01",
+    backlogsAllowed: 0,
   },
   {
     id: "v-106",
+    companyId: "co-6",
     companyName: "FinEdge Technologies",
     roleTitle: "Full Stack Developer",
     employmentType: "Full-time",
@@ -105,13 +116,15 @@ export const mockVacancies: Vacancy[] = [
     batch: "2027",
     applicationDeadline: "2026-11-15",
     description:
-      "Own features end to end for our fintech platform, from database design to polished user interfaces.",
+      "Own payment gateway integrations and lending dashboard workflows end-to-end. Work in an agile, test-driven engineering culture building next-generation financial APIs.",
     status: "published",
     applicantsCount: 22,
     createdAt: "2026-10-12",
+    backlogsAllowed: 0,
   },
   {
     id: "v-107",
+    companyId: "co-7",
     companyName: "LearnLoop",
     roleTitle: "Software Engineer Intern",
     employmentType: "Internship",
@@ -123,13 +136,60 @@ export const mockVacancies: Vacancy[] = [
     batch: "2027",
     applicationDeadline: "2026-11-01",
     description:
-      "Join our product team for a 6-month internship and contribute to features used by thousands of learners.",
+      "Join our core product team for a 6-month pre-placement internship. Work on interactive quizzes, video streaming optimization, and community discussion features.",
     status: "draft",
     applicantsCount: 0,
     createdAt: "2026-10-16",
+    backlogsAllowed: 1,
+  },
+  {
+    id: "v-108",
+    companyId: "co-8",
+    companyName: "GreenGrid Energy",
+    roleTitle: "IoT Engineer",
+    employmentType: "Full-time",
+    location: "Chennai (On-site)",
+    packageLpa: "7 - 9 LPA",
+    minCgpa: "7.0",
+    eligibleBranches: ["ECE", "EE", "CSE"],
+    requiredSkills: ["Embedded C", "MQTT", "Python", "Microcontrollers", "PCB Design"],
+    batch: "2027",
+    applicationDeadline: "2026-11-18",
+    description:
+      "Develop embedded firmware and MQTT gateway communication layers for smart solar inverters and battery storage modules deployed across commercial installations.",
+    status: "published",
+    applicantsCount: 18,
+    createdAt: "2026-10-18",
+    backlogsAllowed: 0,
+  },
+  {
+    id: "v-109",
+    companyId: "co-1",
+    companyName: "TechNova Solutions",
+    roleTitle: "Cloud DevOps Associate",
+    employmentType: "Full-time",
+    location: "Noida (On-site)",
+    packageLpa: "6.5 - 8.5 LPA",
+    minCgpa: "6.8",
+    eligibleBranches: ["CSE", "IT", "ECE"],
+    requiredSkills: ["Linux", "Docker", "Kubernetes", "GitHub Actions", "AWS"],
+    batch: "2027",
+    applicationDeadline: "2026-11-25",
+    description:
+      "Assist senior DevOps architects with automated CI/CD pipeline deployments, container orchestration, and cloud infrastructure monitoring across multiple cloud accounts.",
+    status: "published",
+    applicantsCount: 35,
+    createdAt: "2026-10-21",
+    backlogsAllowed: 0,
   },
 ];
 
 export function getVacancyById(id: string): Vacancy | undefined {
   return mockVacancies.find((v) => v.id === id);
+}
+
+export function getVacanciesByCompanyId(companyId: string): Vacancy[] {
+  return mockVacancies.filter(
+    (v) => v.companyId === companyId
+  );
 }

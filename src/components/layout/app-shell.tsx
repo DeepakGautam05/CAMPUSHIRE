@@ -52,8 +52,26 @@ export function AppShell({
   const pathname = usePathname();
   const nav = role === "student" ? studentNav : officerNav;
 
-  const isActive = (href: string) =>
-    href === `/${role}` ? pathname === href : pathname.startsWith(href);
+  const isActive = (href: string) => {
+    if (href === `/${role}`) return pathname === href;
+    if (href === "/officer/vacancies") {
+      return (
+        pathname === "/officer/vacancies" ||
+        (pathname.startsWith("/officer/vacancies/") &&
+          !pathname.startsWith("/officer/vacancies/new") &&
+          !pathname.startsWith("/officer/vacancies/create") &&
+          !pathname.startsWith("/officer/vacancies/review"))
+      );
+    }
+    if (href === "/officer/vacancies/new") {
+      return (
+        pathname.startsWith("/officer/vacancies/new") ||
+        pathname.startsWith("/officer/vacancies/create") ||
+        pathname.startsWith("/officer/vacancies/review")
+      );
+    }
+    return pathname === href || pathname.startsWith(href + "/");
+  };
 
   return (
     <div className="min-h-screen lg:flex">
