@@ -1,29 +1,37 @@
 "use client";
 
-// Phase 3 - Step 6: Officer Company Details
-// Reads the id from the URL, finds the company, and shows profile, vacancies and hiring history.
-// Mock data only. No backend yet.
+// Phase 3: Officer Company Details
+// Shows company profile, contact details, hiring track record, and associated vacancies.
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
   ArrowLeft,
+  ArrowRight,
   Briefcase,
+  Building2,
+  Calendar,
+  ExternalLink,
   Globe,
   GraduationCap,
   IndianRupee,
   Mail,
   MapPin,
   Phone,
+  Plus,
+  Trophy,
   User,
   Users,
 } from "lucide-react";
-import { CompanyAvatar } from "@/components/company-avatar";
-import { StatCard } from "@/components/stat-card";
-import { VacancyStatusBadge } from "@/components/vacancy-status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -32,113 +40,220 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useCompany } from "@/lib/company-store";
-import { formatDate } from "@/lib/format";
-import { useStoreReady } from "@/lib/vacancy-store";
+import { StatCard } from "@/components/stat-card";
+import { StatusBadge } from "@/components/status-badge";
+import { CompanyAvatar } from "@/components/company-avatar";
+import { NotFoundState } from "@/components/not-found-state";
+import { getCompanyById } from "@/lib/mock-companies";
+import { getVacanciesByCompanyId } from "@/lib/mock-vacancies";
 
-const LIST_ROUTE = "/officer/companies";
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
 
 export default function CompanyDetailsPage() {
   const params = useParams<{ id: string }>();
-  const id = Array.isArray(params.id) ? params.id[0] : params.id;
-  const company = useCompany(id);
-  const ready = useStoreReady();
-
-  // Wait until the browser data is read, so a new company never flashes "not found"
-  if (!company && !ready) return null;
+  const id = Array.isArray(params?.id) ? params.id[0] : params?.id;
+  const company = id ? getCompanyById(id) : undefined;
 
   if (!company) {
     return (
-      <div className="mx-auto max-w-3xl p-6">
-        <Card>
-          <CardContent className="space-y-3 p-10 text-center">
-            <p className="text-lg font-semibold">Company not found</p>
-            <p className="text-sm text-muted-foreground">
-              This company does not exist or was removed.
-            </p>
-            <Button asChild variant="outline">
-              <Link href={LIST_ROUTE}>Back to companies</Link>
-            </Button>
-          </CardContent>
-        </Card>
+      <div className="py-12">
+        <NotFoundState
+          title="Company not found"
+          description="The company with this ID does not exist or was removed from the database."
+          backHref="/officer/companies"
+          backLabel="Back to companies"
+        />
       </div>
     );
   }
 
-  const contact = [
-    { icon: User, label: "HR contact", value: company.hrName },
-    { icon: Mail, label: "Email", value: company.hrEmail, href: `mailto:${company.hrEmail}` },
-    { icon: Phone, label: "Phone", value: company.hrPhone, href: `tel:${company.hrPhone.replace(/\s/g, "")}` },
-    {
-      icon: Globe,
-      label: "Website",
-      value: company.website,
-      href: `https://${company.website}`,
-      external: true,
-    },
-    { icon: MapPin, label: "Headquarters", value: company.headquarters },
-  ];
+  const vacancies = getVacanciesByCompanyId(company.id);
+  const activeCount = vacancies.filter((v) => v.status === "published").length;
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 p-6">
-      <Button asChild variant="ghost" size="sm" className="-ml-2">
-        <Link href={LIST_ROUTE}>
-          <ArrowLeft className="mr-2 h-4 w-4" />All companies
-        </Link>
-      </Button>
+    <div className="space-y-6">
+      {/* Back button */}
+      <div>
+        <Button asChild variant="ghost" size="sm" className="-ml-2 text-muted-foreground hover:text-foreground">
+          <Link href="/officer/companies">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to companies
+          </Link>
+        </Button>
+      </div>
 
-      {/* Header */}
-      <div className="flex flex-wrap items-center gap-4">
-        <CompanyAvatar name={company.name} className="h-14 w-14 text-base" />
-        <div>
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-2xl font-semibold tracking-tight">{company.name}</h1>
-            <Badge variant="primary">{company.industry}</Badge>
+      {/* Header Profile */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex items-start gap-3.5">
+          <CompanyAvatar name={company.name} size="lg" className="mt-0.5" />
+          <div>
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h1 className="text-2xl font-semibold tracking-tight">{company.name}</h1>
+              <Badge variant="secondary">{company.industry}</Badge>
+            </div>
+            <p className="mt-1 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+              <span className="inline-flex items-center gap-1">
+                <MapPin className="h-3.5 w-3.5" />
+                {company.location}
+              </span>
+              <span>·</span>
+              <a
+                href={company.website}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-primary hover:underline"
+              >
+                <Globe className="h-3.5 w-3.5" />
+                {company.website.replace(/^https?:\/\//, "")}
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            </p>
           </div>
-          <p className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
-            <MapPin className="h-3.5 w-3.5" />
-            {company.headquarters}
-          </p>
         </div>
+
+        <Button asChild>
+          <Link href="/officer/vacancies/new">
+            <Plus className="mr-1.5 h-4 w-4" />
+            Create Vacancy
+          </Link>
+        </Button>
       </div>
 
-      {/* Stats */}
+      {/* Past Hiring Summary Stats */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Active vacancies" value={company.activeVacancies} icon={Briefcase} />
-        <StatCard label="Total vacancies" value={company.vacancies.length} icon={Briefcase} />
-        <StatCard label="Applicants" value={company.totalApplicants} icon={Users} />
-        <StatCard label="Students hired" value={company.hiring.studentsHired} icon={GraduationCap} />
+        <StatCard
+          label="Total Campus Hires"
+          value={company.totalHires}
+          icon={GraduationCap}
+          note="Alumni successfully placed"
+        />
+        <StatCard
+          label="Average Package"
+          value={company.avgPackageLpa}
+          icon={IndianRupee}
+          note="Historical offer average"
+        />
+        <StatCard
+          label="Highest Package Offered"
+          value={company.highestPackageLpa}
+          icon={Trophy}
+          note="Peak CTC extended on campus"
+        />
+        <StatCard
+          label="Campus Partner Since"
+          value={company.hiringSince}
+          icon={Calendar}
+          note="Active recruitment partner"
+        />
       </div>
 
+      {/* Main Grid: Left Company Info & HR Contact, Right Vacancies */}
       <div className="grid gap-6 lg:grid-cols-3">
-        <div className="space-y-6 lg:col-span-2">
+        {/* Left Column: About & HR Contact */}
+        <div className="space-y-6 lg:col-span-1">
+          {/* About Card */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">About</CardTitle>
+              <CardTitle className="text-base font-semibold">About Company</CardTitle>
             </CardHeader>
-            <CardContent>
-              <p className="text-sm leading-relaxed text-muted-foreground">{company.about}</p>
+            <CardContent className="space-y-3 text-sm">
+              <p className="leading-relaxed text-muted-foreground">
+                {company.about}
+              </p>
+
+              <div className="border-t pt-3 space-y-2 text-xs text-muted-foreground">
+                <div className="flex justify-between">
+                  <span>Industry Sector</span>
+                  <span className="font-medium text-foreground">{company.industry}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Primary Location</span>
+                  <span className="font-medium text-foreground">{company.location}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Active Drives</span>
+                  <span className="font-medium text-foreground">{activeCount} Published</span>
+                </div>
+              </div>
             </CardContent>
           </Card>
 
+          {/* HR Point of Contact Card */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Vacancies</CardTitle>
-              <CardDescription>
-                {company.vacancies.length === 0
-                  ? "No vacancies from this company yet."
-                  : `${company.vacancies.length} vacancy${company.vacancies.length === 1 ? "" : "ies"} posted`}
-              </CardDescription>
+              <CardTitle className="text-base font-semibold">Recruiting POC</CardTitle>
+              <CardDescription>Primary campus relation liaison</CardDescription>
             </CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <User className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="font-medium">{company.hrContact.name}</p>
+                  <p className="text-xs text-muted-foreground">{company.hrContact.role}</p>
+                </div>
+              </div>
+
+              <div className="space-y-2 pt-2 text-xs">
+                <a
+                  href={`mailto:${company.hrContact.email}`}
+                  className="flex items-center gap-2 rounded-md border p-2 text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors"
+                >
+                  <Mail className="h-3.5 w-3.5 text-primary" />
+                  <span className="truncate">{company.hrContact.email}</span>
+                </a>
+
+                <a
+                  href={`tel:${company.hrContact.phone}`}
+                  className="flex items-center gap-2 rounded-md border p-2 text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors"
+                >
+                  <Phone className="h-3.5 w-3.5 text-primary" />
+                  <span>{company.hrContact.phone}</span>
+                </a>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Right Column: List of Company Vacancies */}
+        <div className="space-y-6 lg:col-span-2">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+              <div>
+                <CardTitle className="text-base font-semibold">
+                  Recruitment Drives ({vacancies.length})
+                </CardTitle>
+                <CardDescription>
+                  Current and past vacancies posted by {company.name}
+                </CardDescription>
+              </div>
+
+              <Badge variant="outline">
+                {activeCount} Active
+              </Badge>
+            </CardHeader>
+
             <CardContent>
-              {company.vacancies.length === 0 ? (
-                <div className="rounded-lg border border-dashed p-8 text-center">
-                  <p className="text-sm font-medium">No vacancies yet</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Create one with the AI flow and it will appear here.
+              {vacancies.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <Briefcase className="h-8 w-8 text-muted-foreground" />
+                  <p className="mt-2 text-sm font-medium">No vacancies posted yet</p>
+                  <p className="text-xs text-muted-foreground">
+                    Create the first vacancy drive for this company.
                   </p>
-                  <Button asChild size="sm" variant="outline" className="mt-4">
-                    <Link href="/officer/vacancies/new">Create vacancy</Link>
+                  <Button asChild size="sm" className="mt-4">
+                    <Link href="/officer/vacancies/new">
+                      <Plus className="mr-1.5 h-3.5 w-3.5" />
+                      Add Vacancy
+                    </Link>
                   </Button>
                 </div>
               ) : (
@@ -146,30 +261,50 @@ export default function CompanyDetailsPage() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Role</TableHead>
+                        <TableHead>Role Title</TableHead>
                         <TableHead>Package</TableHead>
                         <TableHead>Deadline</TableHead>
                         <TableHead>Applicants</TableHead>
                         <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Action</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {company.vacancies.map((v) => (
-                        <TableRow key={v.id}>
+                      {vacancies.map((v) => (
+                        <TableRow key={v.id} className="hover:bg-muted/40">
                           <TableCell>
                             <Link
                               href={`/officer/vacancies/${v.id}`}
-                              className="font-medium hover:text-primary hover:underline"
+                              className="font-medium text-foreground hover:text-primary transition-colors"
                             >
                               {v.roleTitle}
                             </Link>
-                            <p className="text-xs text-muted-foreground">{v.employmentType}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {v.employmentType} · {v.location}
+                            </p>
                           </TableCell>
-                          <TableCell>{v.packageLpa}</TableCell>
-                          <TableCell>{formatDate(v.applicationDeadline)}</TableCell>
-                          <TableCell>{v.applicantsCount}</TableCell>
+                          <TableCell className="whitespace-nowrap font-medium">
+                            {v.packageLpa}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
+                            {formatDate(v.applicationDeadline)}
+                          </TableCell>
                           <TableCell>
-                            <VacancyStatusBadge status={v.status} />
+                            <span className="inline-flex items-center gap-1 text-xs">
+                              <Users className="h-3 w-3 text-muted-foreground" />
+                              {v.applicantsCount}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <StatusBadge status={v.status} />
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button asChild size="sm" variant="ghost" className="h-8 px-2 text-xs">
+                              <Link href={`/officer/vacancies/${v.id}`}>
+                                View
+                                <ArrowRight className="ml-1 h-3 w-3" />
+                              </Link>
+                            </Button>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -180,71 +315,8 @@ export default function CompanyDetailsPage() {
             </CardContent>
           </Card>
         </div>
-
-        <div className="space-y-6">
-          <Card className="h-fit">
-            <CardHeader>
-              <CardTitle className="text-base">Contact</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {contact.map(({ icon: Icon, label, value, href, external }) => (
-                <div key={label} className="flex items-start gap-3">
-                  <Icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                  <div className="min-w-0">
-                    <p className="text-xs text-muted-foreground">{label}</p>
-                    {!value ? (
-                      <p className="text-sm text-muted-foreground">Not added</p>
-                    ) : href ? (
-                      <a
-                        href={href}
-                        {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-                        className="block break-words text-sm font-medium text-primary hover:underline"
-                      >
-                        {value}
-                      </a>
-                    ) : (
-                      <p className="text-sm font-medium">{value}</p>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-
-          <Card className="h-fit">
-            <CardHeader>
-              <CardTitle className="text-base">Past hiring</CardTitle>
-              <CardDescription>Summary of earlier campus drives</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ul className="space-y-3 text-sm">
-                <li className="flex justify-between">
-                  <span className="text-muted-foreground">Students hired</span>
-                  <span className="font-medium">{company.hiring.studentsHired}</span>
-                </li>
-                <li className="flex justify-between">
-                  <span className="text-muted-foreground">Average package</span>
-                  <span className="inline-flex items-center gap-1 font-medium">
-                    <IndianRupee className="h-3 w-3" />
-                    {company.hiring.avgPackageLpa}
-                  </span>
-                </li>
-                <li className="flex justify-between">
-                  <span className="text-muted-foreground">Highest package</span>
-                  <span className="inline-flex items-center gap-1 font-medium">
-                    <IndianRupee className="h-3 w-3" />
-                    {company.hiring.highestPackageLpa}
-                  </span>
-                </li>
-                <li className="flex justify-between">
-                  <span className="text-muted-foreground">Last campus visit</span>
-                  <span className="font-medium">{company.hiring.lastVisit}</span>
-                </li>
-              </ul>
-            </CardContent>
-          </Card>
-        </div>
       </div>
     </div>
   );
 }
+

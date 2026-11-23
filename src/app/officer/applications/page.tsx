@@ -1,18 +1,30 @@
 "use client";
 
-// Phase 3 - Step 8: Officer Applications
-// Tabs by status + search + a status dropdown per row (saved in localStorage). Mock data only.
-// Opening /officer/applications?vacancy=<id> shows only the applications of that vacancy.
+// Phase 4: Officer Applications Pipeline
+// Full recruitment candidate screening and shortlisting pipeline.
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { Search, X } from "lucide-react";
+import {
+  CheckCircle2,
+  Clock,
+  Download,
+  Filter,
+  GraduationCap,
+  Mail,
+  Phone,
+  Search,
+  SlidersHorizontal,
+  UserCheck,
+  Users,
+  X,
+  XCircle,
+} from "lucide-react";
+import { PageHeader } from "@/components/layout/app-shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -21,183 +33,598 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { EmptyState } from "@/components/empty-state";
 import {
-  APPLICATION_STATUSES,
-  setApplicationStatus,
-  useApplications,
-} from "@/lib/application-store";
-import { formatDate } from "@/lib/format";
-import { getStudent } from "@/lib/mock-students";
-import { useVacancies } from "@/lib/vacancy-store";
-import type { ApplicationStatus } from "@/types";
+  mockPipelineApplications,
+  type ApplicationStage,
+  type PipelineApplication,
+} from "@/lib/mock-pipeline-applications";
 
-type Filter = "all" | ApplicationStatus;
-
-const STATUS_VARIANT: Record<ApplicationStatus, "primary" | "warning" | "success" | "danger" | "default"> = {
-  Applied: "default",
-  Shortlisted: "primary",
-  Interview: "warning",
-  Offered: "success",
-  Rejected: "danger",
+const STAGE_CONFIG: Record<
+  ApplicationStage,
+  { label: string; style: string; icon: React.ElementType }
+> = {
+  Applied: {
+    label: "Applied",
+    style: "bg-slate-100 text-slate-700 border-slate-200",
+    icon: Clock,
+  },
+  Shortlisted: {
+    label: "Shortlisted",
+    style: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    icon: UserCheck,
+  },
+  Interview: {
+    label: "Interview",
+    style: "bg-indigo-50 text-indigo-700 border-indigo-200",
+    icon: Users,
+  },
+  Offered: {
+    label: "Offered",
+    style: "bg-purple-50 text-purple-700 border-purple-200",
+    icon: CheckCircle2,
+  },
+  Rejected: {
+    label: "Rejected",
+    style: "bg-rose-50 text-rose-700 border-rose-200",
+    icon: XCircle,
+  },
 };
 
 export default function OfficerApplicationsPage() {
-  const searchParams = useSearchParams();
-  const vacancyFilter = searchParams.get("vacancy");
-
+  const [applications, setApplications] = useState<PipelineApplication[]>(
+    mockPipelineApplications
+  );
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<Filter>("all");
-  const applications = useApplications();
-  const vacancies = useVacancies();
+  const [stageFilter, setStageFilter] = useState<"all" | ApplicationStage>(
+    "all"
+  );
+  const [branchFilter, setBranchFilter] = useState("all");
+  const [vacancyFilter, setVacancyFilter] = useState("all");
+  const [cgpaFilter, setCgpaFilter] = useState("all");
+  const [selectedApp, setSelectedApp] = useState<PipelineApplication | null>(
+    null
+  );
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Join each application with its student and vacancy
-  const rows = useMemo(() => {
-    return applications
-      .map((a) => ({
-        application: a,
-        student: getStudent(a.studentId),
-        vacancy: vacancies.find((v) => v.id === a.vacancyId),
-      }))
-      .filter((r) => r.student && r.vacancy)
-      .filter((r) => !vacancyFilter || r.application.vacancyId === vacancyFilter);
-  }, [applications, vacancies, vacancyFilter]);
+  // Extract unique vacancies and branches for filter dropdowns
+  const uniqueVacancies = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const a of applications) {
+      if (!map.has(a.vacancyId)) {
+        map.set(a.vacancyId, `${a.vacancyTitle} (${a.companyName})`);
+      }
+    }
+    return Array.from(map.entries()).map(([id, label]) => ({ id, label }));
+  }, [applications]);
 
-  const counts = useMemo(() => {
-    const c: Record<Filter, number> = {
-      all: rows.length, Applied: 0, Shortlisted: 0, Interview: 0, Offered: 0, Rejected: 0,
+  const uniqueBranches = useMemo(() => {
+    return Array.from(new Set(applications.map((a) => a.branch))).sort();
+  }, [applications]);
+
+  // Stage summary counts
+  const stageCounts = useMemo(() => {
+    const counts: Record<string, number> = {
+      all: applications.length,
+      Applied: 0,
+      Shortlisted: 0,
+      Interview: 0,
+      Offered: 0,
+      Rejected: 0,
     };
-    for (const r of rows) c[r.application.status]++;
-    return c;
-  }, [rows]);
+    for (const a of applications) {
+      counts[a.status] = (counts[a.status] || 0) + 1;
+    }
+    return counts;
+  }, [applications]);
 
-  const visible = useMemo(() => {
+  // Filtered applications
+  const visibleApplications = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return rows.filter((r) => {
-      if (filter !== "all" && r.application.status !== filter) return false;
+    return applications.filter((app) => {
+      if (stageFilter !== "all" && app.status !== stageFilter) return false;
+      if (branchFilter !== "all" && app.branch !== branchFilter) return false;
+      if (vacancyFilter !== "all" && app.vacancyId !== vacancyFilter) return false;
+      if (cgpaFilter !== "all") {
+        const min = parseFloat(cgpaFilter);
+        if (app.cgpa < min) return false;
+      }
       if (!q) return true;
       return (
-        r.student!.name.toLowerCase().includes(q) ||
-        r.student!.rollNo.includes(q) ||
-        r.vacancy!.roleTitle.toLowerCase().includes(q) ||
-        r.vacancy!.companyName.toLowerCase().includes(q)
+        app.studentName.toLowerCase().includes(q) ||
+        app.rollNo.toLowerCase().includes(q) ||
+        app.companyName.toLowerCase().includes(q) ||
+        app.vacancyTitle.toLowerCase().includes(q)
       );
     });
-  }, [rows, query, filter]);
+  }, [applications, query, stageFilter, branchFilter, vacancyFilter, cgpaFilter]);
 
-  const filteredVacancy = vacancyFilter ? vacancies.find((v) => v.id === vacancyFilter) : undefined;
+  // Quick in-place status transition
+  const handleUpdateStatus = (
+    id: string,
+    newStatus: ApplicationStage,
+    studentName: string
+  ) => {
+    setApplications((prev) =>
+      prev.map((app) => (app.id === id ? { ...app, status: newStatus } : app))
+    );
+    if (selectedApp?.id === id) {
+      setSelectedApp((prev) => (prev ? { ...prev, status: newStatus } : null));
+    }
+    setToastMessage(`Updated ${studentName}'s status to "${newStatus}".`);
+    setTimeout(() => setToastMessage(null), 3500);
+  };
+
+  // Export CSV simulation
+  const handleExportCsv = () => {
+    const headers =
+      "Roll No,Name,Branch,CGPA,Company,Role,Package,Status,Applied On\n";
+    const rows = visibleApplications
+      .map(
+        (a) =>
+          `"${a.rollNo}","${a.studentName}","${a.branch}",${a.cgpa},"${a.companyName}","${a.vacancyTitle}","${a.packageLpa}","${a.status}","${a.appliedOn}"`
+      )
+      .join("\n");
+    const blob = new Blob([headers + rows], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `placement-applications-${stageFilter}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setToastMessage(`Exported ${visibleApplications.length} candidates as CSV.`);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 p-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Applications</h1>
-        <p className="text-sm text-muted-foreground">
-          Review applicants and move them through the hiring stages.
-        </p>
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        title="Applications & Shortlisting"
+        description="Review candidate submissions, evaluate eligibility against cutoffs, and advance recruitment stages."
+        action={
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={handleExportCsv}>
+              <Download className="mr-1.5 h-3.5 w-3.5" />
+              Export CSV ({visibleApplications.length})
+            </Button>
+          </div>
+        }
+      />
 
-      {vacancyFilter && (
-        <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-indigo-50 px-4 py-2 text-sm">
-          <span>
-            Showing applications for{" "}
-            <span className="font-medium">
-              {filteredVacancy ? `${filteredVacancy.roleTitle} at ${filteredVacancy.companyName}` : "this vacancy"}
-            </span>
-          </span>
-          <Button asChild variant="ghost" size="xs">
-            <Link href="/officer/applications">
-              <X />Clear
-            </Link>
-          </Button>
+      {toastMessage && (
+        <div className="flex items-center justify-between rounded-lg border border-indigo-200 bg-indigo-50/80 p-3 text-sm font-medium text-indigo-900 transition-all">
+          <span>{toastMessage}</span>
+          <button
+            onClick={() => setToastMessage(null)}
+            className="text-xs text-indigo-700 hover:underline"
+          >
+            Dismiss
+          </button>
         </div>
       )}
 
-      <Card>
-        <CardContent className="space-y-4 p-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <Tabs value={filter} onValueChange={(v) => setFilter(v as Filter)}>
-              <TabsList className="flex-wrap">
-                <TabsTrigger value="all">All ({counts.all})</TabsTrigger>
-                {APPLICATION_STATUSES.map((s) => (
-                  <TabsTrigger key={s} value={s}>
-                    {s} ({counts[s]})
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-            </Tabs>
+      {/* Stage KPI Cards */}
+      <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
+        {(
+          ["Applied", "Shortlisted", "Interview", "Offered", "Rejected"] as ApplicationStage[]
+        ).map((stage) => {
+          const conf = STAGE_CONFIG[stage];
+          const count = stageCounts[stage] || 0;
+          const isSelected = stageFilter === stage;
 
-            <div className="relative w-full sm:w-72">
+          return (
+            <button
+              key={stage}
+              onClick={() => setStageFilter(isSelected ? "all" : stage)}
+              className={`rounded-xl border p-4 text-left transition-all ${
+                isSelected
+                  ? "border-primary bg-primary/5 ring-2 ring-primary/20 shadow-xs"
+                  : "bg-card hover:bg-muted/30"
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-muted-foreground">
+                  {stage}
+                </span>
+                <conf.icon className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <p className="mt-2 text-2xl font-bold tracking-tight">{count}</p>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">
+                {stage === "Offered" ? "Offers extended" : "Active in pipeline"}
+              </p>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Filter and Search Bar */}
+      <Card>
+        <CardContent className="space-y-3 p-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="relative w-full lg:w-72">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search student, role or company"
-                aria-label="Search applications"
+                placeholder="Search candidate or roll no…"
+                aria-label="Search candidates"
                 className="pl-9"
               />
             </div>
-          </div>
 
-          {visible.length === 0 ? (
-            <div className="rounded-lg border border-dashed p-10 text-center">
-              <p className="text-sm font-medium">No applications found</p>
-              <p className="mt-1 text-xs text-muted-foreground">Try a different search or status.</p>
+            <div className="flex flex-wrap gap-2">
+              {/* Vacancy selector */}
+              <select
+                value={vacancyFilter}
+                onChange={(e) => setVacancyFilter(e.target.value)}
+                className="h-9 rounded-lg border bg-card px-3 text-xs text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                aria-label="Filter by drive"
+              >
+                <option value="all">All Drives ({uniqueVacancies.length})</option>
+                {uniqueVacancies.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.label}
+                  </option>
+                ))}
+              </select>
+
+              {/* Branch selector */}
+              <select
+                value={branchFilter}
+                onChange={(e) => setBranchFilter(e.target.value)}
+                className="h-9 rounded-lg border bg-card px-3 text-xs text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                aria-label="Filter by branch"
+              >
+                <option value="all">All Branches</option>
+                {uniqueBranches.map((b) => (
+                  <option key={b} value={b}>
+                    {b}
+                  </option>
+                ))}
+              </select>
+
+              {/* CGPA cutoff selector */}
+              <select
+                value={cgpaFilter}
+                onChange={(e) => setCgpaFilter(e.target.value)}
+                className="h-9 rounded-lg border bg-card px-3 text-xs text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                aria-label="Filter by CGPA"
+              >
+                <option value="all">Min CGPA: Any</option>
+                <option value="7.0">CGPA ≥ 7.0</option>
+                <option value="7.5">CGPA ≥ 7.5</option>
+                <option value="8.0">CGPA ≥ 8.0</option>
+                <option value="8.5">CGPA ≥ 8.5</option>
+              </select>
+
+              {(stageFilter !== "all" ||
+                branchFilter !== "all" ||
+                vacancyFilter !== "all" ||
+                cgpaFilter !== "all" ||
+                query) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setQuery("");
+                    setStageFilter("all");
+                    setBranchFilter("all");
+                    setVacancyFilter("all");
+                    setCgpaFilter("all");
+                  }}
+                  className="h-9 text-xs text-muted-foreground"
+                >
+                  Clear filters
+                </Button>
+              )}
             </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Student</TableHead>
-                    <TableHead>Branch / CGPA</TableHead>
-                    <TableHead>Vacancy</TableHead>
-                    <TableHead>Applied on</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Update</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {visible.map(({ application: a, student, vacancy }) => (
-                    <TableRow key={a.id}>
-                      <TableCell>
-                        <p className="font-medium">{student!.name}</p>
-                        <p className="text-xs text-muted-foreground">{student!.rollNo}</p>
-                      </TableCell>
-                      <TableCell>
-                        {student!.branch} &middot; {student!.cgpa.toFixed(1)}
-                      </TableCell>
-                      <TableCell>
-                        <Link
-                          href={`/officer/vacancies/${vacancy!.id}`}
-                          className="font-medium hover:text-primary hover:underline"
-                        >
-                          {vacancy!.roleTitle}
-                        </Link>
-                        <p className="text-xs text-muted-foreground">{vacancy!.companyName}</p>
-                      </TableCell>
-                      <TableCell>{formatDate(a.appliedOn)}</TableCell>
-                      <TableCell>
-                        <Badge variant={STATUS_VARIANT[a.status]}>{a.status}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <select
-                          value={a.status}
-                          onChange={(e) => setApplicationStatus(a.id, e.target.value as ApplicationStatus)}
-                          aria-label={`Change status for ${student!.name}`}
-                          className="h-8 rounded-md border bg-background px-2 text-sm outline-none focus-visible:border-primary focus-visible:ring-[3px] focus-visible:ring-primary/30"
-                        >
-                          {APPLICATION_STATUSES.map((s) => (
-                            <option key={s} value={s}>{s}</option>
-                          ))}
-                        </select>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
+          </div>
         </CardContent>
       </Card>
+
+      {/* Applications Table on Desktop, Cards on Mobile */}
+      {visibleApplications.length === 0 ? (
+        <EmptyState
+          icon={Users}
+          title="No candidates match your criteria"
+          description="Try broadening your filters or resetting search parameters."
+          action={
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setQuery("");
+                setStageFilter("all");
+                setBranchFilter("all");
+                setVacancyFilter("all");
+                setCgpaFilter("all");
+              }}
+            >
+              Reset Filters
+            </Button>
+          }
+        />
+      ) : (
+        <>
+          {/* Desktop Table View */}
+          <div className="hidden overflow-x-auto rounded-xl border bg-card md:block">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Candidate</TableHead>
+                  <TableHead>Drive / Company</TableHead>
+                  <TableHead>Academic</TableHead>
+                  <TableHead>Applied Date</TableHead>
+                  <TableHead>Current Stage</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {visibleApplications.map((app) => (
+                  <TableRow
+                    key={app.id}
+                    className="cursor-pointer hover:bg-muted/40"
+                    onClick={() => setSelectedApp(app)}
+                  >
+                    <TableCell>
+                      <div>
+                        <p className="font-semibold text-foreground hover:text-primary transition-colors">
+                          {app.studentName}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {app.rollNo} · {app.email}
+                        </p>
+                      </div>
+                    </TableCell>
+
+                    <TableCell>
+                      <div>
+                        <p className="font-medium text-foreground">
+                          {app.vacancyTitle}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {app.companyName} · {app.packageLpa}
+                        </p>
+                      </div>
+                    </TableCell>
+
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="text-xs font-medium">
+                          {app.branch}
+                        </Badge>
+                        <span className="font-semibold text-sm">
+                          {app.cgpa} CGPA
+                        </span>
+                      </div>
+                    </TableCell>
+
+                    <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                      {app.appliedOn}
+                    </TableCell>
+
+                    <TableCell>
+                      <span
+                        className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${
+                          STAGE_CONFIG[app.status].style
+                        }`}
+                      >
+                        {app.status}
+                      </span>
+                    </TableCell>
+
+                    <TableCell
+                      className="text-right"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="flex justify-end gap-1">
+                        <select
+                          value={app.status}
+                          onChange={(e) =>
+                            handleUpdateStatus(
+                              app.id,
+                              e.target.value as ApplicationStage,
+                              app.studentName
+                            )
+                          }
+                          className="h-8 rounded-md border bg-card px-2 text-xs font-medium text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                        >
+                          <option value="Applied">Applied</option>
+                          <option value="Shortlisted">Shortlisted</option>
+                          <option value="Interview">Interview</option>
+                          <option value="Offered">Offered</option>
+                          <option value="Rejected">Rejected</option>
+                        </select>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Mobile Cards View */}
+          <div className="grid gap-3 md:hidden">
+            {visibleApplications.map((app) => (
+              <Card
+                key={app.id}
+                onClick={() => setSelectedApp(app)}
+                className="cursor-pointer transition-colors hover:bg-muted/30"
+              >
+                <CardContent className="space-y-3 p-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="font-semibold">{app.studentName}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {app.rollNo} · {app.branch} · {app.cgpa} CGPA
+                      </p>
+                    </div>
+                    <span
+                      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${
+                        STAGE_CONFIG[app.status].style
+                      }`}
+                    >
+                      {app.status}
+                    </span>
+                  </div>
+
+                  <div className="rounded-lg border bg-muted/20 p-2.5 text-xs">
+                    <p className="font-medium text-foreground">{app.vacancyTitle}</p>
+                    <p className="text-muted-foreground">{app.companyName} · {app.packageLpa}</p>
+                  </div>
+
+                  <div
+                    className="flex items-center justify-between border-t pt-2"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <span className="text-[11px] text-muted-foreground">
+                      Applied: {app.appliedOn}
+                    </span>
+                    <select
+                      value={app.status}
+                      onChange={(e) =>
+                        handleUpdateStatus(
+                          app.id,
+                          e.target.value as ApplicationStage,
+                          app.studentName
+                        )
+                      }
+                      className="h-7 rounded border bg-card px-1.5 text-xs font-medium"
+                    >
+                      <option value="Applied">Applied</option>
+                      <option value="Shortlisted">Shortlisted</option>
+                      <option value="Interview">Interview</option>
+                      <option value="Offered">Offered</option>
+                      <option value="Rejected">Rejected</option>
+                    </select>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* Candidate Evaluation Modal / Slide-over */}
+      {selectedApp && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-xs">
+          <div className="relative w-full max-w-xl rounded-xl border bg-card p-6 shadow-xl animate-in fade-in zoom-in-95">
+            <button
+              onClick={() => setSelectedApp(null)}
+              className="absolute right-4 top-4 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+              aria-label="Close modal"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <div className="space-y-4">
+              <div>
+                <span
+                  className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${
+                    STAGE_CONFIG[selectedApp.status].style
+                  }`}
+                >
+                  {selectedApp.status}
+                </span>
+                <h2 className="mt-1.5 text-xl font-bold tracking-tight">
+                  {selectedApp.studentName}
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  Roll No: {selectedApp.rollNo} · {selectedApp.branch} Engineering
+                </p>
+              </div>
+
+              {/* Drive Details */}
+              <div className="rounded-lg border bg-muted/30 p-3.5 space-y-1 text-sm">
+                <p className="text-xs text-muted-foreground">Application Target</p>
+                <p className="font-semibold">{selectedApp.vacancyTitle}</p>
+                <p className="text-xs text-muted-foreground">
+                  {selectedApp.companyName} · {selectedApp.packageLpa}
+                </p>
+              </div>
+
+              {/* Academic & Cutoff Verification */}
+              <div className="grid grid-cols-3 gap-3 text-center">
+                <div className="rounded-lg border bg-card p-3">
+                  <p className="text-xs text-muted-foreground">CGPA</p>
+                  <p className="mt-1 text-lg font-bold">{selectedApp.cgpa}</p>
+                </div>
+                <div className="rounded-lg border bg-card p-3">
+                  <p className="text-xs text-muted-foreground">Backlogs</p>
+                  <p className="mt-1 text-lg font-bold">{selectedApp.backlogs}</p>
+                </div>
+                <div className="rounded-lg border bg-card p-3">
+                  <p className="text-xs text-muted-foreground">Applied Date</p>
+                  <p className="mt-1 text-xs font-semibold pt-1">
+                    {selectedApp.appliedOn}
+                  </p>
+                </div>
+              </div>
+
+              {/* Skills */}
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-1.5">
+                  Verified Candidate Skills
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {selectedApp.skills.map((s) => (
+                    <Badge key={s} variant="secondary" className="text-xs">
+                      {s}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+
+              {selectedApp.notes && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-3 text-xs text-amber-900">
+                  <strong>Evaluator Note:</strong> {selectedApp.notes}
+                </div>
+              )}
+
+              {/* Contact info */}
+              <div className="flex flex-wrap items-center justify-between border-t pt-3 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1.5">
+                  <Mail className="h-3.5 w-3.5 text-primary" />
+                  {selectedApp.email}
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <Phone className="h-3.5 w-3.5 text-primary" />
+                  {selectedApp.phone}
+                </span>
+              </div>
+
+              {/* Quick stage transition button bar */}
+              <div className="space-y-2 border-t pt-4">
+                <p className="text-xs font-semibold">Change Candidate Stage</p>
+                <div className="flex flex-wrap gap-2">
+                  {(
+                    ["Shortlisted", "Interview", "Offered", "Rejected"] as ApplicationStage[]
+                  ).map((st) => (
+                    <Button
+                      key={st}
+                      size="sm"
+                      variant={selectedApp.status === st ? "default" : "outline"}
+                      onClick={() =>
+                        handleUpdateStatus(
+                          selectedApp.id,
+                          st,
+                          selectedApp.studentName
+                        )
+                      }
+                      className="text-xs h-8"
+                    >
+                      Mark as {st}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+

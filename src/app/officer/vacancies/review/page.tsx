@@ -68,6 +68,7 @@ export default function ReviewVacancyPage() {
     const location = values.location.trim();
     const workMode = values.workMode.trim();
     const input: NewVacancyInput = {
+      companyId: `co-${Date.now()}`,
       companyName: values.company.trim(),
       roleTitle: values.title.trim(),
       employmentType: values.jobType.trim().toLowerCase().startsWith("intern")
@@ -82,6 +83,7 @@ export default function ReviewVacancyPage() {
       applicationDeadline: values.deadline.trim(),
       description: values.description.trim(),
       status,
+      backlogsAllowed: 0,
     };
     const vacancy = addVacancy(input);
     router.push(`/officer/vacancies/${vacancy.id}`);

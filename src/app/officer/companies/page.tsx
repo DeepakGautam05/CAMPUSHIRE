@@ -1,141 +1,184 @@
 "use client";
 
-// Phase 3 - Step 5: Officer Companies list
-// Search + industry filter + grid of company cards. Mock data only. No backend yet.
+// Phase 3: Officer Companies List
+// Displays company directory with search, industry filter, and active vacancies count.
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Briefcase, Building2, GraduationCap, MapPin, Search } from "lucide-react";
-import { CompanyAvatar } from "@/components/company-avatar";
-import { StatCard } from "@/components/stat-card";
+import { ArrowRight, Briefcase, Building2, MapPin, Search } from "lucide-react";
+import { PageHeader } from "@/components/layout/app-shell";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { useCompanies } from "@/lib/company-store";
-
-const DETAILS_ROUTE = (id: string) => `/officer/companies/${id}`;
+import { CompanyAvatar } from "@/components/company-avatar";
+import { EmptyState } from "@/components/empty-state";
+import { mockCompanies } from "@/lib/mock-companies";
+import { mockVacancies } from "@/lib/mock-vacancies";
 
 export default function OfficerCompaniesPage() {
   const [query, setQuery] = useState("");
-  const [industry, setIndustry] = useState("all");
-  const companies = useCompanies();
+  const [industryFilter, setIndustryFilter] = useState("all");
 
-  const industries = useMemo(
-    () => Array.from(new Set(companies.map((c) => c.industry))).sort(),
-    [companies]
-  );
+  const industries = useMemo(() => {
+    return Array.from(new Set(mockCompanies.map((c) => c.industry))).sort();
+  }, []);
 
-  const totals = useMemo(
-    () => ({
-      active: companies.reduce((sum, c) => sum + c.activeVacancies, 0),
-      hired: companies.reduce((sum, c) => sum + c.hiring.studentsHired, 0),
-    }),
-    [companies]
-  );
+  // Compute active vacancies map for instant lookup
+  const activeVacanciesByCompany = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const v of mockVacancies) {
+      if (v.status === "published") {
+        map[v.companyId] = (map[v.companyId] || 0) + 1;
+      }
+    }
+    return map;
+  }, []);
 
-  const visible = useMemo(() => {
+  const visibleCompanies = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return companies.filter((c) => {
-      if (industry !== "all" && c.industry !== industry) return false;
+    return mockCompanies.filter((company) => {
+      if (industryFilter !== "all" && company.industry !== industryFilter) {
+        return false;
+      }
       if (!q) return true;
       return (
-        c.name.toLowerCase().includes(q) ||
-        c.industry.toLowerCase().includes(q) ||
-        c.headquarters.toLowerCase().includes(q)
+        company.name.toLowerCase().includes(q) ||
+        company.location.toLowerCase().includes(q) ||
+        company.industry.toLowerCase().includes(q)
       );
     });
-  }, [companies, query, industry]);
+  }, [query, industryFilter]);
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 p-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Companies</h1>
-        <p className="text-sm text-muted-foreground">
-          Companies that recruit from your campus, with their open vacancies.
-        </p>
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        title="Recruiting Companies"
+        description="Browse registered partner organizations and track active campus recruitment drives."
+      />
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard label="Companies" value={companies.length} icon={Building2} />
-        <StatCard label="Active vacancies" value={totals.active} icon={Briefcase} />
-        <StatCard label="Students hired (all time)" value={totals.hired} icon={GraduationCap} />
-      </div>
+      {/* Filter and Search Bar */}
+      <Card>
+        <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="relative w-full sm:w-72">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search company or location…"
+                aria-label="Search companies"
+                className="pl-9"
+              />
+            </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative w-full sm:w-80">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search company, industry or city"
-            aria-label="Search companies"
-            className="pl-9"
-          />
-        </div>
-        <select
-          value={industry}
-          onChange={(e) => setIndustry(e.target.value)}
-          aria-label="Filter by industry"
-          className="h-9 rounded-md border bg-background px-3 text-sm shadow-xs outline-none focus-visible:border-primary focus-visible:ring-[3px] focus-visible:ring-primary/30"
-        >
-          <option value="all">All industries</option>
-          {industries.map((i) => (
-            <option key={i} value={i}>
-              {i}
-            </option>
-          ))}
-        </select>
-      </div>
+            <select
+              value={industryFilter}
+              onChange={(e) => setIndustryFilter(e.target.value)}
+              className="h-9 rounded-lg border bg-card px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+              aria-label="Filter by industry"
+            >
+              <option value="all">All Industries ({mockCompanies.length})</option>
+              {industries.map((ind) => {
+                const count = mockCompanies.filter((c) => c.industry === ind).length;
+                return (
+                  <option key={ind} value={ind}>
+                    {ind} ({count})
+                  </option>
+                );
+              })}
+            </select>
+          </div>
 
-      {visible.length === 0 ? (
-        <div className="rounded-lg border border-dashed p-10 text-center">
-          <p className="text-sm font-medium">No companies found</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Try a different search or industry.
+          <p className="text-xs text-muted-foreground">
+            Showing <span className="font-semibold text-foreground">{visibleCompanies.length}</span> of{" "}
+            {mockCompanies.length} companies
           </p>
-        </div>
+        </CardContent>
+      </Card>
+
+      {/* Grid of Company Cards */}
+      {visibleCompanies.length === 0 ? (
+        <EmptyState
+          icon={Building2}
+          title="No companies match your search"
+          description="Try modifying your keyword or clearing the industry filter."
+          action={
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setQuery("");
+                setIndustryFilter("all");
+              }}
+            >
+              Reset Filters
+            </Button>
+          }
+        />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {visible.map((c) => (
-            <Link
-              key={c.id}
-              href={DETAILS_ROUTE(c.id)}
-              className="group rounded-xl outline-none focus-visible:ring-[3px] focus-visible:ring-primary/30"
-            >
-              <Card className="h-full transition-shadow group-hover:shadow-md">
-                <CardContent className="flex h-full flex-col gap-4 p-5">
+          {visibleCompanies.map((company) => {
+            const activeCount = activeVacanciesByCompany[company.id] || 0;
+
+            return (
+              <Card
+                key={company.id}
+                className="group flex flex-col justify-between transition-all hover:border-primary/50 hover:shadow-sm"
+              >
+                <CardContent className="space-y-4 p-5">
+                  {/* Top: Avatar, Name & Industry */}
                   <div className="flex items-start gap-3">
-                    <CompanyAvatar name={c.name} />
-                    <div className="min-w-0">
-                      <p className="truncate font-semibold">{c.name}</p>
-                      <p className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <MapPin className="h-3 w-3" />
-                        {c.headquarters}
-                      </p>
+                    <CompanyAvatar name={company.name} size="md" />
+                    <div className="min-w-0 flex-1">
+                      <h2 className="truncate font-semibold tracking-tight group-hover:text-primary transition-colors">
+                        {company.name}
+                      </h2>
+                      <Badge variant="secondary" className="mt-1 text-[11px] font-normal">
+                        {company.industry}
+                      </Badge>
                     </div>
                   </div>
 
-                  <Badge variant="primary" className="w-fit">
-                    {c.industry}
-                  </Badge>
+                  {/* Location & Metadata */}
+                  <div className="space-y-2 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-1.5 truncate">
+                      <MapPin className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                      <span className="truncate">{company.location}</span>
+                    </div>
 
-                  <div className="mt-auto flex items-center justify-between border-t pt-4 text-sm">
-                    <div>
-                      <p className="font-semibold">{c.activeVacancies}</p>
-                      <p className="text-xs text-muted-foreground">Active vacancies</p>
+                    <div className="flex items-center gap-1.5">
+                      <Briefcase className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                      {activeCount > 0 ? (
+                        <span className="font-medium text-emerald-700">
+                          {activeCount} active {activeCount === 1 ? "opening" : "openings"}
+                        </span>
+                      ) : (
+                        <span>No active openings</span>
+                      )}
                     </div>
-                    <div>
-                      <p className="font-semibold">{c.hiring.studentsHired}</p>
-                      <p className="text-xs text-muted-foreground">Students hired</p>
-                    </div>
-                    <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
+                  </div>
+
+                  {/* Bottom: Total past hires summary & View button */}
+                  <div className="flex items-center justify-between border-t pt-3.5">
+                    <span className="text-xs text-muted-foreground">
+                      <strong className="text-foreground">{company.totalHires}</strong> campus hires to date
+                    </span>
+
+                    <Button asChild size="sm" variant="outline" className="h-8 gap-1 text-xs">
+                      <Link href={`/officer/companies/${company.id}`}>
+                        View
+                        <ArrowRight className="h-3 w-3" />
+                      </Link>
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
-            </Link>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
   );
 }
+

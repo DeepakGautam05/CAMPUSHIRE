@@ -1,9 +1,10 @@
-// Phase 3 - Step 1: types for the officer vacancies list and details
+// Phase 3: Types for the officer vacancies list and details
 
 export type VacancyStatus = "draft" | "published" | "closed";
 
 export type Vacancy = {
   id: string;
+  companyId: string;
   companyName: string;
   roleTitle: string;
   employmentType: "Full-time" | "Internship";
@@ -18,6 +19,7 @@ export type Vacancy = {
   status: VacancyStatus;
   applicantsCount: number;
   createdAt: string; // ISO date
+  backlogsAllowed?: number;
 };
 
 export const STATUS_LABEL: Record<VacancyStatus, string> = {

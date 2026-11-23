@@ -96,3 +96,4 @@ next-env.d.ts
 # ============================
 .agents/
 .gemini/
+.neon

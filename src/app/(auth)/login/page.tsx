@@ -64,18 +64,19 @@ export default function LoginPage() {
             ))}
           </div>
 
-          <div className="mt-6 space-y-4">
-            <div className="space-y-1.5">
+          <div className="mt-6 space-y-4" suppressHydrationWarning>
+            <div className="space-y-1.5" suppressHydrationWarning>
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
                 type="email"
                 defaultValue={role === "student" ? "deepak@saitm.edu" : "placement@saitm.edu"}
+                suppressHydrationWarning
               />
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-1.5" suppressHydrationWarning>
               <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" defaultValue="password" />
+              <Input id="password" type="password" defaultValue="password" suppressHydrationWarning />
             </div>
             <Button asChild className="w-full" size="lg">
               <Link href={role === "student" ? "/student" : "/officer"}>
