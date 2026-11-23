@@ -6,12 +6,15 @@
 import { useState } from "react";
 import {
   Award,
+  AlertTriangle,
   Building2,
   Calendar,
   CheckCircle2,
   Download,
   GraduationCap,
   IndianRupee,
+  Lightbulb,
+  Sparkles,
   TrendingUp,
   Users,
 } from "lucide-react";
@@ -47,6 +50,7 @@ import {
   mockCtcDistribution,
   mockHiringVelocity,
   mockTopRecruiters,
+  mockSkillsGapAnalysis,
 } from "@/lib/mock-analytics";
 
 const BAR_COLORS = ["#4f46e5", "#059669", "#0284c7", "#d97706", "#7c3aed"];
@@ -338,6 +342,118 @@ export default function OfficerAnalyticsPage() {
                 ))}
               </TableBody>
             </Table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Skills Demand vs Student Competency Gap Analysis */}
+      <Card className="border-indigo-100 bg-linear-to-b from-white to-indigo-50/20">
+        <CardHeader className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-primary" />
+              <CardTitle className="text-base font-semibold">
+                Industry Skill Demand vs Student Competency Gap
+              </CardTitle>
+            </div>
+            <CardDescription>
+              Discrepancy between job vacancy requirements and verifiable student skill profiles across the 2027 batch.
+            </CardDescription>
+          </div>
+          <Badge variant="outline" className="w-fit bg-white text-xs">
+            Curriculum Alignment AI Radar
+          </Badge>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Visual comparison bar chart */}
+          <div className="h-72 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={mockSkillsGapAnalysis}
+                margin={{ top: 10, right: 10, left: -20, bottom: 25 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
+                <XAxis
+                  dataKey="skill"
+                  angle={-20}
+                  textAnchor="end"
+                  interval={0}
+                  tick={{ fontSize: 11 }}
+                  height={50}
+                />
+                <YAxis unit="%" tick={{ fontSize: 11 }} domain={[0, 100]} />
+                <Tooltip
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0].payload;
+                      return (
+                        <div className="rounded-lg border bg-white p-3 shadow-md text-xs space-y-1">
+                          <p className="font-semibold text-foreground">{data.skill}</p>
+                          <p className="text-indigo-600">
+                            🏢 Recruiter Demand: <span className="font-bold">{data.marketDemandPercentage}%</span>
+                          </p>
+                          <p className="text-emerald-600">
+                            🎓 Student Proficiency: <span className="font-bold">{data.studentProficiencyPercentage}%</span>
+                          </p>
+                          <p className={data.gapPercentage > 20 ? "text-red-600 font-semibold" : "text-slate-600"}>
+                            ⚡ Skill Deficit: {data.gapPercentage}%
+                          </p>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+                <Legend
+                  verticalAlign="top"
+                  align="right"
+                  wrapperStyle={{ fontSize: 12, paddingBottom: 8 }}
+                />
+                <Bar
+                  name="Industry Demand %"
+                  dataKey="marketDemandPercentage"
+                  fill="#4f46e5"
+                  radius={[4, 4, 0, 0]}
+                />
+                <Bar
+                  name="Student Proficiency %"
+                  dataKey="studentProficiencyPercentage"
+                  fill="#10b981"
+                  radius={[4, 4, 0, 0]}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Breakdown cards & Actionable Recommendations */}
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {mockSkillsGapAnalysis.slice(0, 4).map((gap) => (
+              <div
+                key={gap.skill}
+                className="flex flex-col justify-between rounded-lg border bg-card p-3 text-xs space-y-2 shadow-2xs hover:border-primary/40 transition-colors"
+              >
+                <div>
+                  <div className="flex items-center justify-between gap-1 mb-1">
+                    <span className="font-semibold text-foreground truncate">{gap.skill}</span>
+                    <Badge
+                      className={
+                        gap.severity === "High Deficit"
+                          ? "bg-red-50 text-red-700 border-red-200"
+                          : "bg-amber-50 text-amber-700 border-amber-200"
+                      }
+                      variant="outline"
+                    >
+                      {gap.gapPercentage}% Gap
+                    </Badge>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">{gap.category}</p>
+                </div>
+                <div className="rounded bg-muted/60 p-2 text-[11px] text-slate-700 flex items-start gap-1.5">
+                  <Lightbulb className="h-3.5 w-3.5 shrink-0 text-amber-600 mt-0.5" />
+                  <span>{gap.recommendation}</span>
+                </div>
+              </div>
+            ))}
           </div>
         </CardContent>
       </Card>

@@ -119,9 +119,36 @@ export function AppShell({
             {role === "student" ? "Student workspace" : "Placement Cell workspace"}
           </div>
           <div className="flex items-center gap-3">
-            <Bell className="h-4 w-4 text-muted-foreground" />
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-xs font-semibold text-primary">
-              {role === "student" ? "D" : "PO"}
+            <Link
+              href={role === "student" ? "/student/notifications" : "#"}
+              className="relative rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+              title="Notifications"
+            >
+              <Bell className="h-4 w-4" />
+              <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-primary" />
+            </Link>
+
+            {/* Profile badge with Quick Logout */}
+            <div className="flex items-center gap-2 pl-2 border-l">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-xs font-semibold text-primary">
+                {role === "student" ? "DG" : "PO"}
+              </div>
+              <div className="hidden flex-col text-left sm:flex">
+                <span className="text-xs font-medium leading-none">
+                  {role === "student" ? "Deepak Gautam" : "Officer Admin"}
+                </span>
+                <span className="text-[10px] text-muted-foreground">
+                  {role === "student" ? "233114 · CSE" : "Placement Officer"}
+                </span>
+              </div>
+              <Link
+                href="/login"
+                className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors ml-1"
+                title="Logout from session"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+                <span className="hidden md:inline">Logout</span>
+              </Link>
             </div>
           </div>
         </header>
